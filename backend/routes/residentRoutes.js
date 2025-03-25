@@ -4,16 +4,106 @@ import db from "../config/db.js";
 const router = express.Router();
 
 
+// router.get("/show", async (req, res) => {
+//     try {
+//         const [rows] = await db.promise().query("SELECT * FROM residents");
+//         console.log("Fetched Residents:", rows);
+//         res.json(rows);
+//     } catch (err) {
+//         console.error("Database Error:", err);
+//         res.status(500).json({ error: err.message });
+//     }
+// });
+// Fetch all residents sorted by Block (case-insensitive) and Flat Number
 router.get("/show", async (req, res) => {
     try {
-        const [rows] = await db.promise().query("SELECT * FROM residents");
-        console.log("Fetched Residents:", rows);
+        const [rows] = await db.promise().query(
+            "SELECT * FROM residents ORDER BY BINARY UPPER(block) ASC, flat_number ASC"
+        );
         res.json(rows);
     } catch (err) {
         console.error("Database Error:", err);
         res.status(500).json({ error: err.message });
     }
 });
+
+
+// Search resident by block and flat number
+router.get("/search", async (req, res) => {
+    const { block, flat_number } = req.query;
+
+    if (!block || !flat_number) {
+        return res.status(400).json({ error: "Block and Flat Number are required" });
+    }
+
+    try {
+        const [rows] = await db.promise().query(
+            "SELECT * FROM residents WHERE block = ? AND flat_number = ?",
+            [block, flat_number]
+        );
+
+        if (rows.length === 0) {
+            return res.json({ message: "Flat not found" });
+        }
+
+        res.json(rows[0]);
+    } catch (err) {
+        console.error("Search Error:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
+// router.post("/add", async (req, res) => {
+//     let { block, flat_number, name, contact_number, email_id, status } = req.body;
+
+//     console.log("Received data:", req.body); 
+
+//     if (!block || !flat_number) {
+//         return res.status(400).json({ message: "Block and Flat Number are required." });
+//     }
+
+//     block = block.toUpperCase(); // Convert block to uppercase for uniformity
+
+//     try {
+//         // Ensure block and flat_number are indexed for sorting
+//         const createIndexQuery = `ALTER TABLE residents ADD INDEX idx_block_flat (block, flat_number);`;
+//         await db.promise().query(createIndexQuery);
+
+//         // Check if the flat already exists (case-insensitive check for block)
+//         const checkQuery = "SELECT * FROM residents WHERE LOWER(block) = LOWER(?) AND flat_number = ?";
+//         const [rows] = await db.promise().query(checkQuery, [block, flat_number]);
+
+//         if (rows.length > 0) {
+//             console.log("Flat already exists, not inserting."); 
+//             return res.status(400).json({ error: "Flat already exists in the database." });
+//         }
+
+//         // Insert Query
+//         const insertQuery = `
+//             INSERT INTO residents (block, flat_number, name, contact_number, email_id, status) 
+//             VALUES (?, ?, ?, ?, ?, ?)
+//         `;
+
+//         const values = [
+//             block,
+//             flat_number,
+//             name && name.trim() !== "" ? name : null,
+//             contact_number && contact_number.trim() !== "" ? contact_number : null,
+//             email_id && email_id.trim() !== "" ? email_id : null,
+//             status || "vacant"
+//         ];
+
+//         console.log("Executing SQL Query:", insertQuery, values); 
+//         await db.promise().query(insertQuery, values);
+
+//         res.status(201).json({ message: "Flat/Resident added successfully!" });
+
+//     } catch (error) {
+//         console.error("Error adding flat/resident:", error);
+//         res.status(500).json({ message: "Internal server error" });
+//     }
+// });
 
 
 router.post("/add", async (req, res) => {
